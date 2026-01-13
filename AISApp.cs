@@ -16,7 +16,7 @@ namespace AISPubSub
         //Configuration related
         private static string _host = "https://eu.ais.connect.aveva.com/data";
         private static string _accessToken = string.Empty;
-        public string SelectedDataSource = string.Empty;
+        private string _selectedDataSource = string.Empty;
         public string SelectedAcknId = string.Empty;
         public string SelectedTableName = string.Empty;
 
@@ -26,8 +26,8 @@ namespace AISPubSub
         private SignalRPubSubClient? _signalRPubSubClient;
 
         //Authentication related
-        public static string TbUserId = string.Empty;
-        public static string TbPassword = string.Empty;
+        private static string _tbUserId = string.Empty;
+        private static string _tbPassword = string.Empty;
 
 
         //Database related
@@ -35,7 +35,7 @@ namespace AISPubSub
         private static readonly string DbPath = Path.Combine(BaseDir, "identifier.sqlite");
         private static readonly string ConnectionString = $"Data Source={DbPath}";
         private SqlConnectionStringBuilder? _builder;
-        private DataAccess _dataAccess;
+        private readonly DataAccess _dataAccess;
         
 
         public AisApp()
@@ -135,14 +135,14 @@ namespace AISPubSub
             }
             catch (Exception e)
             {
-                Log.Error("Error during Health Check: " + e.Message);
+                Log.Fatal("Error during Health Check: " + e.Message);
                 pBStatus.Image = Resources.mark;
 
             }
         }
 
         // Set up subscription to a data source
-        public async Task SetUpSubscription(string dataSource)
+        private async Task SetUpSubscription(string dataSource)
         {
 
             _host = tbHostUrl.Text.TrimEnd('/') + "/";
@@ -160,22 +160,22 @@ namespace AISPubSub
             _signalRPubSubClient.MessagePublished -= SignalRPubSubClient_MessagePublished;
 
             await _signalRPubSubClient.Subscribe(dataSource);
-            Log.Information(string.Format("Pubsub client subscribed to {0}", dataSource));
+            Log.Information($"Pubsub client subscribed to {dataSource}");
 
             _signalRPubSubClient.MessagePublished += SignalRPubSubClient_MessagePublished;
 
         }
 
         // Unsubscribe from a data source
-        public async Task Unsubscribe(string dataSource)
+        private async Task Unsubscribe(string dataSource)
         {
             _signalRPubSubClient!.MessagePublished -= SignalRPubSubClient_MessagePublished;
             await _signalRPubSubClient.Unsubscribe(dataSource);
-            Log.Information(string.Format("Pubsub client unsubscribed from {0}", dataSource));
+            Log.Information($"Pubsub client unsubscribed from {dataSource}");
         }
 
         // Event handler for message published
-        public async void SignalRPubSubClient_MessagePublished(object? sender, PubSubMessageEventArgs e)
+        private async void SignalRPubSubClient_MessagePublished(object? sender, PubSubMessageEventArgs e)
         {
 
             try
@@ -201,8 +201,8 @@ namespace AISPubSub
                     {
                         InitialCatalog = tBDatabase.Text,
                         DataSource = tBServerInstance.Text,
-                        UserID = TbUserId,
-                        Password = TbPassword,
+                        UserID = _tbUserId,
+                        Password = _tbPassword,
                         IntegratedSecurity = false,
                         ConnectTimeout = 30,
                         TrustServerCertificate = true
@@ -218,7 +218,7 @@ namespace AISPubSub
         }
 
         //Input Box for Access Token
-        public static string ShowInputBox(string prompt, string title)
+        private static string ShowInputBox(string prompt, string title)
         {
 
             var promptForm = new Form
@@ -245,7 +245,7 @@ namespace AISPubSub
         }
 
         //Get SQL Authentication
-        public static void ShowAthuBox(string label1, string label2)
+        private static void ShowAthuBox(string label1, string label2)
         {
 
             var promptForm = new Form
@@ -273,8 +273,8 @@ namespace AISPubSub
 
             if (dialogResult == DialogResult.OK)
             {
-                TbUserId = inputBox.Text;
-                TbPassword = inputBox1.Text;
+                _tbUserId = inputBox.Text;
+                _tbPassword = inputBox1.Text;
             }
 
         }
@@ -297,8 +297,8 @@ namespace AISPubSub
                 {
                     InitialCatalog = tBDatabase.Text,
                     DataSource = tBServerInstance.Text,
-                    UserID = TbUserId,
-                    Password = TbPassword,
+                    UserID = _tbUserId,
+                    Password = _tbPassword,
                     IntegratedSecurity = false,
                     ConnectTimeout = 30,
                     TrustServerCertificate = true
@@ -405,13 +405,13 @@ namespace AISPubSub
             try
             {
 
-                if (string.IsNullOrEmpty(SelectedDataSource))
+                if (string.IsNullOrEmpty(_selectedDataSource))
                 {
                     Log.Information("Please select a Data Source first.");
                     return;
                 }
 
-                IEnumerable<Acknowledgement> ackList = await _dataApiClient!.GetAcknowledgements(SelectedDataSource, !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
+                IEnumerable<Acknowledgement> ackList = await _dataApiClient!.GetAcknowledgements(_selectedDataSource, !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
 
                 cBAckn.Items.Clear();
 
@@ -443,15 +443,15 @@ namespace AISPubSub
             try
             {
 
-                if (string.IsNullOrEmpty(SelectedDataSource))
+                if (string.IsNullOrEmpty(_selectedDataSource))
                 {
                     Log.Information("Please select a Data Source first.");
                     return;
                 }
 
-                Log.Information($"Fetching tables for Data Source: {SelectedDataSource}");
+                Log.Information($"Fetching tables for Data Source: {_selectedDataSource}");
 
-                DataTable tableResult = await _dataApiClient!.GetTables(SelectedDataSource, liveData: false, _accessToken);
+                DataTable tableResult = await _dataApiClient!.GetTables(_selectedDataSource, liveData: false, _accessToken);
 
                 Log.Information("Table fetch completed.");
 
@@ -491,13 +491,13 @@ namespace AISPubSub
         private void CbSubscribe_Click(object sender, EventArgs e)
         {
 
-            if (string.IsNullOrEmpty(SelectedDataSource))
+            if (string.IsNullOrEmpty(_selectedDataSource))
             {
                 Log.Information("Please select a Data Source first.");
                 return;
             }
 
-            _ = cbSubscribe.Checked ? SetUpSubscription(SelectedDataSource) : Unsubscribe(SelectedDataSource);
+            _ = cbSubscribe.Checked ? SetUpSubscription(_selectedDataSource) : Unsubscribe(_selectedDataSource);
 
         }
 
@@ -543,7 +543,7 @@ namespace AISPubSub
 
         private void cBDatasource_SelectedIndexChanged(object sender, EventArgs e)
         {
-            SelectedDataSource = cBDatasource.Text;
+            _selectedDataSource = cBDatasource.Text;
         }
 
         private void cBAckn_SelectedIndexChanged(object sender, EventArgs e)
@@ -563,7 +563,7 @@ namespace AISPubSub
 
                 Log.Information($"Total Acknowledgements {cBAcknList.Count}");
 
-                var deleteAcknIds = await _dataApiClient!.DeleteAcknowledgements(SelectedDataSource, cBAcknList, !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
+                var deleteAcknIds = await _dataApiClient!.DeleteAcknowledgements(_selectedDataSource, cBAcknList, !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
 
                 Log.Information($"Deleted Acknowledgements {deleteAcknIds.StatusCode}");
                 Log.Information($"Status Message {deleteAcknIds.Message}");
