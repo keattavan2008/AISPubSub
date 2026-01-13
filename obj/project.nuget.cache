@@ -1,12 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "1p6LLJTmpjw=",
+  "dgSpecHash": "LHnzbDAD+B4=",
   "success": true,
   "projectFilePath": "C:\\Users\\dsmesm\\source\\repos\\AISPubSub\\AISPubSub.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\dsmesm\\.nuget\\packages\\azure.core\\1.47.1\\azure.core.1.47.1.nupkg.sha512",
     "C:\\Users\\dsmesm\\.nuget\\packages\\azure.identity\\1.14.2\\azure.identity.1.14.2.nupkg.sha512",
-    "C:\\Users\\dsmesm\\.nuget\\packages\\dapper\\2.1.66\\dapper.2.1.66.nupkg.sha512",
     "C:\\Users\\dsmesm\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\8.0.0\\microsoft.bcl.asyncinterfaces.8.0.0.nupkg.sha512",
     "C:\\Users\\dsmesm\\.nuget\\packages\\microsoft.bcl.cryptography\\8.0.0\\microsoft.bcl.cryptography.8.0.0.nupkg.sha512",
     "C:\\Users\\dsmesm\\.nuget\\packages\\microsoft.data.sqlclient\\6.1.3\\microsoft.data.sqlclient.6.1.3.nupkg.sha512",

@@ -1,19 +1,13 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using System.Data;
+using System.Net;
+using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
-using Microsoft.VisualBasic.Logging;
 using Serilog;
-using Serilog.Core;
-using Serilog.Sinks.File;
-using System.Data;
-using System.Text.Json;
-using System.Threading.Tasks;
-
-
-
 
 namespace AISPubSub
 {
-    public class DataAccess : IDisposable
+    public class DataAccess
     {
         //Database related
         private static readonly string BaseDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -47,6 +41,7 @@ namespace AISPubSub
                 .WriteTo.File(Path.Combine(folder, "app.log"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                 rollingInterval: RollingInterval.Day);
                 
+            
 
             return Task.CompletedTask;
             //string dbpath = Path.Combine(folder, "sqliteSample.db");
@@ -144,10 +139,7 @@ namespace AISPubSub
                     {
                         //Log(string.Format("Drop table {0} in SQL database.", tableName));
                     }
-                    else
-                    {
-                        //Log(string.Format("Error dropping table {0} in SQL database.", tableName));
-                    }
+                    //Log(string.Format("Error dropping table {0} in SQL database.", tableName));
                 }
                 catch (Exception)
                 {
@@ -165,10 +157,7 @@ namespace AISPubSub
                     {
                         //Log(string.Format("Created table {0} in SQL database.", tableName));
                     }
-                    else
-                    {
-                        //Log(string.Format("Error Creating table {0} in SQL database.", tableName));
-                    }
+                    //Log(string.Format("Error Creating table {0} in SQL database.", tableName));
                 }
                 catch (Exception)
                 {
@@ -191,21 +180,21 @@ namespace AISPubSub
             };
         }
 
-        private async Task InsertDataIntoSqliteServerAsync(DataTable? dataTable, string tableName, string ConnectionString)
+        private async Task InsertDataIntoSqliteServerAsync(DataTable? dataTable, string tableName, string connectionString)
         {
             if (dataTable == null || dataTable.Rows.Count == 0) return;
 
             foreach (DataColumn col in dataTable.Columns)
             {
                 // Decode %20 and replace other problematic characters with underscores
-                string cleanName = System.Net.WebUtility.UrlDecode(col.ColumnName);
-                cleanName = System.Text.RegularExpressions.Regex.Replace(cleanName, @"[.\-\s%]", "_");
+                string cleanName = WebUtility.UrlDecode(col.ColumnName);
+                cleanName = Regex.Replace(cleanName, @"[.\-\s%]", "_");
                 col.ColumnName = cleanName;
             }
 
-            tableName = System.Text.RegularExpressions.Regex.Replace(tableName, @"[.\-\s]", "_").Replace(".csv", "");
+            tableName = Regex.Replace(tableName, @"[.\-\s]", "_").Replace(".csv", "");
 
-            await using var connection = new SqliteConnection(ConnectionString);
+            await using var connection = new SqliteConnection(connectionString);
             await connection.OpenAsync();
 
             // Ensure this method exists and handles SQLite types correctly
@@ -220,7 +209,7 @@ namespace AISPubSub
                 var colNamesSql = string.Join(", ", columns.Select(c => $"[{c.ColumnName.Replace("_", "")}]"));
 
                 // Sanitize parameter names to remove spaces/symbols, ensuring they are valid SQL variables
-                var paramNamesList = columns.Select(c => $"@param_{System.Text.RegularExpressions.Regex.Replace(c.ColumnName, @"\W", "")}").ToList();
+                var paramNamesList = columns.Select(c => $"@param_{Regex.Replace(c.ColumnName, @"\W", "")}").ToList();
                 var paramNamesSql = string.Join(", ", paramNamesList);
 
                 var insertSql = $"INSERT INTO [{tableName}] ({colNamesSql}) VALUES ({paramNamesSql})";
@@ -259,9 +248,6 @@ namespace AISPubSub
             }
         }
 
-        public void Dispose()
-        {
-            //throw new NotImplementedException();
-        }
+
     }
 }
