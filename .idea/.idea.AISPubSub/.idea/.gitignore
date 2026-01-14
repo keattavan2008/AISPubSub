@@ -13,3 +13,6 @@
 /dataSources.local.xml
 # Editor-based HTTP Client requests
 /httpRequests/
+# bin and obj folders
+/bin/
+/obj/
