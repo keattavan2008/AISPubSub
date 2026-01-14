@@ -148,7 +148,7 @@ namespace AISPubSub
 
             }
 
-            using (SqlCommand command = new(createTableQuery, connection))
+            await using (SqlCommand command = new(createTableQuery, connection))
             {
                 try
                 {
@@ -247,7 +247,6 @@ namespace AISPubSub
                 //Log($"SQLite Insert Error: {ex.Message}");
             }
         }
-
-
+        
     }
 }
