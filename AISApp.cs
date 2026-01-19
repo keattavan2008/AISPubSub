@@ -36,13 +36,15 @@ namespace AISPubSub
         private static readonly string ConnectionString = $"Data Source={DbPath}";
         private SqlConnectionStringBuilder? _builder;
         private readonly DataAccess _dataAccess;
+        private readonly ApiService _apiService;
         
 
-        public AisApp()
+        public AisApp(DataAccess dataAccess, ApiService apiService)
         {
             InitializeComponent();
-
-            _dataAccess = new DataAccess(ConnectionString);
+            _dataAccess = dataAccess;
+            _apiService = apiService;
+            // _dataAccess = new DataAccess(ConnectionString);
             _dataAccess.InitializeDatabase();
             logBox.DrawMode = DrawMode.OwnerDrawFixed;
             
@@ -152,7 +154,7 @@ namespace AISPubSub
                 _signalRPubSubClient = await SignalRHubConnectionFactory.CreatePubSubClient(null, new HubConnectionManager(),
                     !string.IsNullOrEmpty(_accessToken) ? AuthenticationType.Connect : AuthenticationType.NTLM, _host, token: _accessToken);
 
-                Log.Information("Pubsub client created");
+                Log.Information("Pub sub client created");
 
             }
 
@@ -160,7 +162,7 @@ namespace AISPubSub
             _signalRPubSubClient.MessagePublished -= SignalRPubSubClient_MessagePublished;
 
             await _signalRPubSubClient.Subscribe(dataSource);
-            Log.Information($"Pubsub client subscribed to {dataSource}");
+            Log.Information($"Pub sub client subscribed to {dataSource}");
 
             _signalRPubSubClient.MessagePublished += SignalRPubSubClient_MessagePublished;
 
@@ -171,7 +173,7 @@ namespace AISPubSub
         {
             _signalRPubSubClient!.MessagePublished -= SignalRPubSubClient_MessagePublished;
             await _signalRPubSubClient.Unsubscribe(dataSource);
-            Log.Information($"Pubsub client unsubscribed from {dataSource}");
+            Log.Information($"Pub sub client unsubscribed from {dataSource}");
         }
 
         // Event handler for message published
@@ -195,26 +197,39 @@ namespace AISPubSub
                 if (baseResult?.Rows == null) return;
                 Log.Information($"Received {baseResult.Rows.Count} rows for table '{baseResult.TableName}'");
                 // Await this to ensure DB operations complete properly
-                if (_builder == null)
-                {
-                    _builder = new SqlConnectionStringBuilder
-                    {
-                        InitialCatalog = tBDatabase.Text,
-                        DataSource = tBServerInstance.Text,
-                        UserID = _tbUserId,
-                        Password = _tbPassword,
-                        IntegratedSecurity = false,
-                        ConnectTimeout = 30,
-                        TrustServerCertificate = true
-                    };
-                }
-                await _dataAccess.InsertDataIntoSqlServerAsync(baseResult, baseResult.TableName, _builder);
+
+                ValidateSqlrequest(baseResult, baseResult.TableName);
             }
             catch (Exception ex)
             {
                 Log.Error($"Error retrieving/inserting table '{e.PubSubMessage.Topic}': {ex.Message}");
             }
 
+        }
+
+        private async void ValidateSqlrequest(DataTable? dataTable, string tableName)
+        {
+            try
+            {
+                if (rBSQLite.Checked)
+                {
+                    await _dataAccess.InsertDataIntoSqliteServerAsync(dataTable, tableName);
+                }
+
+                if (rBSQLServer.Checked)
+                {
+                    _builder ??= new SqlConnectionStringBuilder
+                    {
+                        ConnectionString = $"Server={tBServerInstance.Text};Database={tBDatabase.Text};Trusted_Connection=True;TrustServerCertificate=True;"
+                    };
+                        
+                    await _dataAccess.InsertDataIntoSqlServerAsync(dataTable!, tableName, _builder);
+                }
+            }
+            catch (Exception es)
+            {
+                Log.Error(es.Message);
+            }
         }
 
         //Input Box for Access Token
@@ -295,23 +310,16 @@ namespace AISPubSub
                 //sqlConnectionStringBuilder.InitialCatalog = tBDatabase.Text;
                 SqlConnectionStringBuilder builder = new()
                 {
-                    InitialCatalog = tBDatabase.Text,
-                    DataSource = tBServerInstance.Text,
-                    UserID = _tbUserId,
-                    Password = _tbPassword,
-                    IntegratedSecurity = false,
-                    ConnectTimeout = 30,
-                    TrustServerCertificate = true
+                    ConnectionString = $"Server={tBServerInstance.Text};Database={tBDatabase.Text};Trusted_Connection=True;TrustServerCertificate=True;"
                 };
 
                 Log.Information(builder.ConnectionString);
 
                 SqlConnection sqlConnection = new(builder.ConnectionString);
                 sqlConnection.Open();
-                var connectionstatus = sqlConnection.State;
-                Log.Information(connectionstatus.ToString());
+                Log.Information(sqlConnection.State.ToString());
                 sqlConnection.Close();
-                Log.Information($"SQL Connection Successful {connectionstatus.ToString()}");
+                Log.Information($"SQL Connection Successful {sqlConnection.State.ToString()}");
             }
             catch (Exception ex)
             {
@@ -404,37 +412,38 @@ namespace AISPubSub
         {
             try
             {
-
+            
                 if (string.IsNullOrEmpty(_selectedDataSource))
                 {
                     Log.Information("Please select a Data Source first.");
                     return;
                 }
-
+            
                 IEnumerable<Acknowledgement> ackList = await _dataApiClient!.GetAcknowledgements(_selectedDataSource, !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
-
+            
                 cBAckn.Items.Clear();
-
+            
                 if (ackList == null || !ackList.Any())
                 {
                     Log.Information("No Acknowledgements found for this source.");
                     return;
                 }
-
+            
                 var names = ackList
                     .Select(a => a.AcknowledgementId)
                     .Where(id => !string.IsNullOrEmpty(id))
                     .ToArray();
-
+            
                 cBAckn.Items.AddRange(names);
-
+            
                 Log.Information($"Loaded {names.Length} Acknowledgements.");
+                
             }
             catch (Exception ax)
             {
                 Log.Error(ax.Message);
             }
-
+            
         }
 
         // Load Tables for the selected data source
@@ -521,7 +530,8 @@ namespace AISPubSub
                     ackid,
                     !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
 
-                Log.Information("Data fetch completed." + tableResult.Columns.Count);
+                Log.Information($"Data fetch completed. for {tableResult.TableName}" + tableResult.Columns.Count);
+                ValidateSqlrequest(tableResult, tableResult.TableName);
             }
             catch (Exception ax)
             {
