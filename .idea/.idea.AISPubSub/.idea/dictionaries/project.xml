@@ -2,8 +2,10 @@
   <dictionary name="project">
     <words>
       <w>Ackn</w>
+      <w>Connectionstring</w>
       <w>Intialize</w>
       <w>datarequest</w>
+      <w>dbview</w>
       <w>rbsq</w>
     </words>
   </dictionary>

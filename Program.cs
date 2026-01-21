@@ -33,8 +33,7 @@ namespace AISPubSub
                         // Register Services
                         var sqliteConn = context.Configuration.GetConnectionString("SqliteConnection")!;
                         services.AddSingleton<DataAccess>(sp => new DataAccess(sqliteConn));
-                        services.AddHttpClient<ApiService>(); // from Infrastructure.Api
-                    
+                        services.AddHttpClient<ApiService>();
                         // Register the Form
                         services.AddTransient<AisApp>();
                     })

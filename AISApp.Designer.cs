@@ -52,6 +52,7 @@ namespace AISPubSub
             label4 = new System.Windows.Forms.Label();
             label3 = new System.Windows.Forms.Label();
             groupBox2 = new System.Windows.Forms.GroupBox();
+            labTablename = new System.Windows.Forms.Label();
             button1 = new System.Windows.Forms.Button();
             bGetAcknIdByTable = new System.Windows.Forms.Button();
             bGetDataByTable = new System.Windows.Forms.Button();
@@ -67,7 +68,6 @@ namespace AISPubSub
             label1 = new System.Windows.Forms.Label();
             logBox = new System.Windows.Forms.ListBox();
             bClear = new System.Windows.Forms.Button();
-            labTablename = new System.Windows.Forms.Label();
             gBAISdeployement.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pBStatus).BeginInit();
             gBAuthentication.SuspendLayout();
@@ -316,6 +316,15 @@ namespace AISPubSub
             groupBox2.TabStop = false;
             groupBox2.Text = "AIS Datasource and Data fetching";
             // 
+            // labTablename
+            // 
+            labTablename.AutoSize = true;
+            labTablename.Location = new System.Drawing.Point(6, 162);
+            labTablename.Name = "labTablename";
+            labTablename.Size = new System.Drawing.Size(138, 15);
+            labTablename.TabIndex = 13;
+            labTablename.Text = "Table name from AcknID";
+            // 
             // button1
             // 
             button1.Location = new System.Drawing.Point(390, 124);
@@ -444,7 +453,7 @@ namespace AISPubSub
             // logBox
             // 
             logBox.FormattingEnabled = true;
-            logBox.HorizontalExtent = 5;
+            logBox.HorizontalExtent = 500;
             logBox.HorizontalScrollbar = true;
             logBox.ItemHeight = 15;
             logBox.Location = new System.Drawing.Point(6, 292);
@@ -463,15 +472,6 @@ namespace AISPubSub
             bClear.Text = "Clear";
             bClear.UseVisualStyleBackColor = true;
             bClear.Click += BClear_Click;
-            // 
-            // labTablename
-            // 
-            labTablename.AutoSize = true;
-            labTablename.Location = new System.Drawing.Point(6, 162);
-            labTablename.Name = "labTablename";
-            labTablename.Size = new System.Drawing.Size(138, 15);
-            labTablename.TabIndex = 13;
-            labTablename.Text = "Table name from AcknID";
             // 
             // AisApp
             // 
