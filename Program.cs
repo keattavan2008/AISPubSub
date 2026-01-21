@@ -1,9 +1,8 @@
-using System.Configuration;
+using AISPubSub.Infrastructure.Api;
+using AISPubSub.Infrastructure.Database;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Http;
-using Serilog;
 
 namespace AISPubSub
 {
@@ -32,9 +31,9 @@ namespace AISPubSub
                     .ConfigureServices((context, services) =>
                     {
                         // Register Services
-                        string sqliteConn = context.Configuration.GetConnectionString("SqliteConnection")!;
+                        var sqliteConn = context.Configuration.GetConnectionString("SqliteConnection")!;
                         services.AddSingleton<DataAccess>(sp => new DataAccess(sqliteConn));
-                        services.AddHttpClient<ApiService>();
+                        services.AddHttpClient<ApiService>(); // from Infrastructure.Api
                     
                         // Register the Form
                         services.AddTransient<AisApp>();
