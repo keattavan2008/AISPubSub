@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Keattavan")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.2")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+68c8e7ca134b779da47e83dafc3377b73bf22efe")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ebc83fcd8cb69fff0781d46bc8943479ec089b9f")]
 [assembly: System.Reflection.AssemblyProductAttribute("AISPubSub")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AISPubSub")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.1")]

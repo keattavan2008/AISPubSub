@@ -127,3 +127,12 @@ C:\Users\dsmesm\source\repos\AISPubSub\obj\Release\net8.0-windows\refint\AISPubS
 C:\Users\dsmesm\source\repos\AISPubSub\obj\Release\net8.0-windows\AISPubSub.pdb
 C:\Users\dsmesm\source\repos\AISPubSub\obj\Release\net8.0-windows\AISPubSub.genruntimeconfig.cache
 C:\Users\dsmesm\source\repos\AISPubSub\obj\Release\net8.0-windows\ref\AISPubSub.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Microsoft.Extensions.Compliance.Abstractions.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Microsoft.Extensions.Diagnostics.ExceptionSummarization.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Microsoft.Extensions.ObjectPool.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Microsoft.Extensions.Resilience.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Microsoft.Extensions.Telemetry.Abstractions.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Polly.Core.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Polly.Extensions.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\Polly.RateLimiting.dll
+C:\Users\dsmesm\source\repos\AISPubSub\bin\Release\net8.0-windows\System.Threading.RateLimiting.dll

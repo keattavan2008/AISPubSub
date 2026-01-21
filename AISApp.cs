@@ -1,5 +1,6 @@
 using System.Data;
 using System.Net;
+using System.Text.RegularExpressions;
 using AISPubSub.Infrastructure.Api;
 using AISPubSub.Infrastructure.Database;
 using AISPubSub.Infrastructure.Logging;
@@ -20,8 +21,8 @@ namespace AISPubSub
         private static string _host = "https://eu.ais.connect.aveva.com/data";
         private static string _accessToken = string.Empty;
         private string _selectedDataSource = string.Empty;
-        public string SelectedAcknId = string.Empty;
-        public string SelectedTableName = string.Empty;
+        private string _selectedAcknId = string.Empty;
+        private string _selectedTableName = string.Empty;
 
         //Clients
         private HealthCheckClient? _healthCheckClient;
@@ -231,53 +232,253 @@ namespace AISPubSub
             }
         }
 
-        private async Task ProcessEngineeringTables()
+        private async Task<DataTable?> GetTablesByAcknowledgementId()
         {
-            Log.Information($"Selected datasource; {_selectedDataSource}");
-            string? ackId = await _apiService.GetAcknowledgementIdAsync(_selectedDataSource, _accessToken);
-
-            // if (!string.IsNullOrEmpty(ackId))
-            // {
-            //     // Optional: Wait if the API is not instantaneous
-            //     // await Task.Delay(2000); 
-            //     
-            //     // string? resultData = await _apiService.GetDataByAcknowledgementIdAsync(ackId, _accessToken);
-            //
-            //     var tableResult = await _dataApiClient!.GetTableDataByAcknowledgementId(
-            //         _selectedDataSource,
-            //         ackId,
-            //         !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
-            //
-            //     Log.Information($"Data fetch completed. for {tableResult.TableName}" + tableResult.Columns.Count);
-            //     ValidateSqlrequest(tableResult, tableResult.TableName);
-            //     
-            // }
-            
-            // Step 1: Request the ID
-            // string ackId = await _apiService.GetAcknowledgementIdAsync(_accessToken);
-            if (string.IsNullOrEmpty(ackId)) return;
-
-            // Step 2: Poll until ready (Max 5 attempts)
-            string? finalData = null;
-            for (int i = 0; i < 5; i++)
+            try
             {
-                Log.Information("Checking status attempt {Attempt}...", i + 1);
-                finalData = await _apiService.CheckStatusAndGetDataAsync(ackId, _accessToken);
+                if (string.IsNullOrEmpty(_selectedAcknId))
+                {
+                    Log.Information("Please select an Acknowledgement ID first.");
+                    return null;
+                }
 
-                if (finalData != null) break; // We got the data!
+                Log.Information($"Fetching data for Acknowledgement ID: {_selectedAcknId}");
+                
+                Log.Debug("debug info: {SelectedDataSource}, {ackId}", _selectedDataSource, _selectedAcknId);
+                
+                var tableResult = await _dataApiClient!.GetTableDataByAcknowledgementId(_selectedDataSource, _selectedAcknId,
+                    !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
 
-                await Task.Delay(3000); // Wait 3 seconds before next check
+                Log.Information("Data fetch completed. for: {tableName} with no of rows {rowsCount} ",tableResult.TableName, tableResult.Rows.Count);
+                
+                return tableResult;
+            }
+            catch (Exception ax)
+            {
+                Log.Error("Error has found while retrieving date by acknowledgement id: {error}",ax.Message);
             }
 
-            if (finalData != null)
+            return null;
+        }
+        
+        private async Task<DataTable?> ProcessEngineeringTables()
+        {
+            try
             {
-                Log.Debug(finalData);
-                // Save to SQLite or SQL Server
-                Log.Information("Data received successfully.");
+                // POST to datarequest
+                string ackId = await _apiService.GetAcknowledgementIdAsync(_selectedDataSource, _accessToken);
+                if (string.IsNullOrEmpty(ackId)) return null;
+                await Task.Delay(3000);
+                _selectedAcknId = ackId;
+                Log.Debug(_selectedAcknId);
+                var tableList = await GetTablesByAcknowledgementId();
+                return tableList;
+            }
+            catch (Exception e)
+            {
+                Log.Error("Processing Tables has error: {errorMessage}",e.Message);
+                return null;
+            }
+
+        }
+        
+        // Load Acknowledgement IDs for the selected data source
+        private async void BAcknList_ClickAsync(object sender, EventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_selectedDataSource))
+                {
+                    Log.Information("Please select a Data Source first.");
+                    return;
+                }
+            
+                IEnumerable<Acknowledgement> ackList = await _dataApiClient!.GetAcknowledgements(_selectedDataSource,
+                    !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
+            
+                cBAckn.Items.Clear();
+            
+                if (ackList == null || !ackList.Any())
+                {
+                    Log.Information("No Acknowledgements found for this source.");
+                    return;
+                }
+            
+                var names = ackList
+                    .Select(a => a.AcknowledgementId)
+                    .Where(id => !string.IsNullOrEmpty(id))
+                    .ToArray();
+            
+                cBAckn.Items.AddRange(names);
+            
+                Log.Information($"Loaded {names.Length} Acknowledgements.");
+                
+            }
+            catch (Exception ax)
+            {
+                Log.Error("Ackno List error {error}",ax.Message);
+            }
+            
+        }
+
+        // Load Tables for the selected data source
+        private async void BGetTables_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var tables = await ProcessEngineeringTables();
+                // var columns      = tables!.Columns.Cast<DataColumn>().ToList();
+                // var safeColNames = columns.Select(c => $"[{Regex.Replace(c.ColumnName, @"[^a-zA-Z0-9_]", "")}]");
+                // var paramNames   = columns.Select((c, i) => $"@p{i}");
+                var filteredNames = tables!.AsEnumerable()
+                    .Where(row => row.Field<string>("Type") == "DbView" || 
+                                  row.Field<string>("Type") == "PML")
+                    .Select(row => row.Field<string>("Name"))
+                    // .Where(name => name != null)
+                    .Distinct() // Ensures no duplicates
+                    .OrderBy(name => name) // Alphabetical order
+                    .ToArray();
+                
+                // 3. Add to ComboBox
+                if (filteredNames.Any())
+                {
+                    cBTable.Items.AddRange(filteredNames.Cast<object>().ToArray());
+                    cBTable.SelectedIndex = 0; // Select the first item by default
+                    Log.Information("Added {Count} filtered items to ComboBox.", filteredNames.Count());
+                }
+                else
+                {
+                    Log.Warning("No items found with Type 'DBVIEW' or 'PML'.");
+                }
+                
+            }
+            catch (Exception ax)
+            {
+                Log.Error("Tables extracting tables has issue: {errors}",ax.Message);
+            }
+
+        }
+
+        private void BClear_Click(object sender, EventArgs e)
+        {
+            logBox.Items.Clear();
+        }
+
+        // Subscribe or Unsubscribe to/from the selected data source
+        private void CbSubscribe_Click(object sender, EventArgs e)
+        {
+
+            if (string.IsNullOrEmpty(_selectedDataSource))
+            {
+                Log.Information("Please select a Data Source first.");
+                return;
+            }
+
+            _ = cbSubscribe.Checked ? SetUpSubscription(_selectedDataSource) : Unsubscribe(_selectedDataSource);
+
+        }
+
+        // Fetch data by Acknowledgement ID
+        private async void BGetDataByAckn_ClickAsync(object sender, EventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_selectedAcknId))
+                {
+                    Log.Information("Please select an Acknowledgement ID first.");
+                    return;
+                }
+
+                Log.Information($"Fetching data for Acknowledgement ID: {_selectedAcknId}");
+
+                var tableResult = await _dataApiClient!.GetTableDataByAcknowledgementId(_selectedDataSource, _selectedAcknId,
+                    !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
+
+                Log.Information("Data fetch completed. for: {tableName} with no of rows {rowsCount} ",tableResult.TableName, tableResult.Rows.Count);
+                ValidateSqlrequest(tableResult, tableResult.TableName);
+            }
+            catch (Exception ax)
+            {
+                Log.Error(ax.Message);
+            }
+        }
+
+        private void BGetDataByTable_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void BGetAcknIdByTable_Click(object sender, EventArgs e)
+        {
+
+        }
+
+
+        private void cBDatasource_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _selectedDataSource = cBDatasource.Text;
+        }
+
+        private void cBAckn_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _selectedAcknId = cBAckn.Text;
+        }
+
+        private async void Button1_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                List<string> cBAcknList = new();
+                foreach (var item in cBAckn.Items)
+                {
+                    cBAcknList.Add(item.ToString()!);
+                }
+
+                Log.Information($"Total Acknowledgements {cBAcknList.Count}");
+
+                var deleteAcknIds = await _dataApiClient!.DeleteAcknowledgements(_selectedDataSource, cBAcknList, 
+                    !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
+
+                Log.Information($"Deleted Acknowledgements {deleteAcknIds.StatusCode}");
+                // Log.Debug($"Status Message {deleteAcknIds.Message}");
+
+            }
+            catch (Exception dx)
+            {
+                Log.Error(dx.Message);
+            }
+        }
+
+        private void logBox_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            // Safety check for empty lists
+            if (e.Index < 0) return;
+
+            // Get the item and cast it back to our LogEntry
+            if (logBox.Items[e.Index] is LogEntry entry)
+            {
+                // Pick the color
+                Color textColor = entry.Level switch
+                {
+                    LogEventLevel.Error or LogEventLevel.Fatal => Color.Red,
+                    LogEventLevel.Warning => Color.DarkOrange,
+                    LogEventLevel.Debug => Color.DarkGray,
+                    _ => Color.Black
+                };
+
+                e.DrawBackground();
+
+                using (Brush brush = new SolidBrush(textColor))
+                {
+                    // Center the text slightly for better alignment in ListBox
+                    e.Graphics.DrawString(entry.Message, e.Font ?? this.Font, brush, e.Bounds);
+                }
+
+                e.DrawFocusRectangle();
             }
         }
         
-        //Input Box for Access Token
+                //Input Box for Access Token
         private static string ShowInputBox(string prompt, string title)
         {
 
@@ -351,13 +552,12 @@ namespace AISPubSub
 
             try
             {
-                //sqlConnectionStringBuilder.InitialCatalog = tBDatabase.Text;
                 SqlConnectionStringBuilder builder = new()
                 {
                     ConnectionString = $"Server={tBServerInstance.Text};Database={tBDatabase.Text};Trusted_Connection=True;TrustServerCertificate=True;"
                 };
 
-                Log.Information(builder.ConnectionString);
+                // Log.Debug(builder.ConnectionString);
 
                 SqlConnection sqlConnection = new(builder.ConnectionString);
                 sqlConnection.Open();
@@ -428,7 +628,6 @@ namespace AISPubSub
             }
             catch (Exception tx)
             {
-
                 Log.Error(tx.Message);
             }
 
@@ -449,183 +648,6 @@ namespace AISPubSub
         private void RBLocal_Click(object sender, EventArgs e)
         {
             tbHostUrl.Text = string.Empty;
-        }
-
-        // Load Acknowledgement IDs for the selected data source
-        private async void BAcknList_ClickAsync(object sender, EventArgs e)
-        {
-            try
-            {
-            
-                if (string.IsNullOrEmpty(_selectedDataSource))
-                {
-                    Log.Information("Please select a Data Source first.");
-                    return;
-                }
-            
-                IEnumerable<Acknowledgement> ackList = await _dataApiClient!.GetAcknowledgements(_selectedDataSource,
-                    !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
-            
-                cBAckn.Items.Clear();
-            
-                if (ackList == null || !ackList.Any())
-                {
-                    Log.Information("No Acknowledgements found for this source.");
-                    return;
-                }
-            
-                var names = ackList
-                    .Select(a => a.AcknowledgementId)
-                    .Where(id => !string.IsNullOrEmpty(id))
-                    .ToArray();
-            
-                cBAckn.Items.AddRange(names);
-            
-                Log.Information($"Loaded {names.Length} Acknowledgements.");
-                
-            }
-            catch (Exception ax)
-            {
-                Log.Error(ax.Message);
-            }
-            
-        }
-
-        // Load Tables for the selected data source
-        private async void BGetTables_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                await ProcessEngineeringTables();
-            }
-            catch (Exception ax)
-            {
-                Log.Error(ax.Message);
-            }
-
-        }
-
-        private void BClear_Click(object sender, EventArgs e)
-        {
-            logBox.Items.Clear();
-        }
-
-        // Subscribe or Unsubscribe to/from the selected data source
-        private void CbSubscribe_Click(object sender, EventArgs e)
-        {
-
-            if (string.IsNullOrEmpty(_selectedDataSource))
-            {
-                Log.Information("Please select a Data Source first.");
-                return;
-            }
-
-            _ = cbSubscribe.Checked ? SetUpSubscription(_selectedDataSource) : Unsubscribe(_selectedDataSource);
-
-        }
-
-        // Fetch data by Acknowledgement ID
-        private async void BGetDataByAckn_ClickAsync(object sender, EventArgs e)
-        {
-            try
-            {
-                string ackid = cBAckn.Text;
-
-                if (string.IsNullOrEmpty(ackid))
-                {
-                    Log.Information("Please select an Acknowledgement ID first.");
-                    return;
-                }
-
-                Log.Information($"Fetching data for Acknowledgement ID: {ackid}");
-
-                var tableResult = await _dataApiClient!.GetTableDataByAcknowledgementId(
-                    cBDatasource.Text,
-                    ackid,
-                    !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
-
-                Log.Information($"Data fetch completed. for {tableResult.TableName}" + tableResult.Columns.Count);
-                ValidateSqlrequest(tableResult, tableResult.TableName);
-            }
-            catch (Exception ax)
-            {
-
-                Log.Error(ax.Message);
-            }
-        }
-
-        private void BGetDataByTable_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void BGetAcknIdByTable_Click(object sender, EventArgs e)
-        {
-
-        }
-
-
-        private void cBDatasource_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            _selectedDataSource = cBDatasource.Text;
-        }
-
-        private void cBAckn_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            SelectedAcknId = cBAckn.Text;
-        }
-
-        private async void Button1_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                List<string> cBAcknList = new();
-                foreach (var item in cBAckn.Items)
-                {
-                    cBAcknList.Add(item.ToString()!);
-                }
-
-                Log.Information($"Total Acknowledgements {cBAcknList.Count}");
-
-                var deleteAcknIds = await _dataApiClient!.DeleteAcknowledgements(_selectedDataSource, cBAcknList, !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
-
-                Log.Information($"Deleted Acknowledgements {deleteAcknIds.StatusCode}");
-                Log.Information($"Status Message {deleteAcknIds.Message}");
-
-            }
-            catch (Exception dx)
-            {
-                Log.Error(dx.Message);
-            }
-        }
-
-        private void logBox_DrawItem(object sender, DrawItemEventArgs e)
-        {
-            // Safety check for empty lists
-            if (e.Index < 0) return;
-
-            // Get the item and cast it back to our LogEntry
-            if (logBox.Items[e.Index] is LogEntry entry)
-            {
-                // Pick the color
-                Color textColor = entry.Level switch
-                {
-                    LogEventLevel.Error or LogEventLevel.Fatal => Color.Red,
-                    LogEventLevel.Warning => Color.DarkOrange,
-                    LogEventLevel.Debug => Color.Gray,
-                    _ => Color.Black
-                };
-
-                e.DrawBackground();
-
-                using (Brush brush = new SolidBrush(textColor))
-                {
-                    // Center the text slightly for better alignment in ListBox
-                    e.Graphics.DrawString(entry.Message, e.Font ?? this.Font, brush, e.Bounds);
-                }
-
-                e.DrawFocusRectangle();
-            }
         }
     }
 }

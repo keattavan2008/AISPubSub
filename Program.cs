@@ -14,11 +14,6 @@ namespace AISPubSub
         [STAThread]
         static void Main(string[] args)
         {
-                // To customize application configuration such as set high DPI settings or default font,
-                // see https://aka.ms/applicationconfiguration.
-                // ApplicationConfiguration.Initialize();
-                // Application.Run(new AisApp());
-                
                 //Custom Configuration
                 ApplicationConfiguration.Initialize();
 
@@ -33,8 +28,7 @@ namespace AISPubSub
                         // Register Services
                         var sqliteConn = context.Configuration.GetConnectionString("SqliteConnection")!;
                         services.AddSingleton<DataAccess>(sp => new DataAccess(sqliteConn));
-                        services.AddHttpClient<ApiService>(); // from Infrastructure.Api
-                    
+                        services.AddHttpClient<ApiService>();
                         // Register the Form
                         services.AddTransient<AisApp>();
                     })
