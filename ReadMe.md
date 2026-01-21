@@ -1,6 +1,22 @@
 # AISPubSub
 
+> Aveva Integration Service Client application to Test the API
 AISPubSub is a .NET application designed to provide robust, real-time logging and message publishing/subscribing capabilities. It leverages Serilog for structured logging and features a custom sink to display log events in a Windows Forms `ListBox` control, making it ideal for monitoring and debugging in GUI-based applications.
+
+![License](https://img.shields.io/badge/license-MIT-green) ![Version](https://img.shields.io/badge/version-1.0.0-blue) ![Language](https://img.shields.io/badge/language-CSharp-yellow) ![Framework](https://img.shields.io/badge/framework-.net8-orange) ![GitHub](https://img.shields.io/badge/GitHub-keattavan2008/AISPubSub-black?logo=github) ![Build Status](https://img.shields.io/github/actions/workflow/status/keattavan2008/AISPubSub/ci.yml?branch=main)
+
+## 📋 Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+
+## ℹ️ Project Information
+
+- **👤 Author:** keattavan2008
+- **📦 Version:** 1.0.0
+- **📄 License:** MIT
+- **📂 Repository:** [https://github.com/keattavan2008/AISPubSub](https://github.com/keattavan2008/AISPubSub)
+- **🏷️ Keywords:** AIS, AVEVA
 
 ## Features
 
