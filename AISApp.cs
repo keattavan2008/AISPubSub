@@ -1,5 +1,8 @@
 using System.Data;
 using System.Net;
+using AISPubSub.Infrastructure.Api;
+using AISPubSub.Infrastructure.Database;
+using AISPubSub.Infrastructure.Logging;
 using AISPubSub.Properties;
 using AVEVA.IntegrationService.DataAPI.SDK;
 using AVEVA.IntegrationService.DataAPI.SDK.ApiClient;
@@ -31,18 +34,20 @@ namespace AISPubSub
 
 
         //Database related
-        private static readonly string BaseDir = AppDomain.CurrentDomain.BaseDirectory;
-        private static readonly string DbPath = Path.Combine(BaseDir, "identifier.sqlite");
-        private static readonly string ConnectionString = $"Data Source={DbPath}";
+        // private static readonly string BaseDir = AppDomain.CurrentDomain.BaseDirectory;
+        // private static readonly string DbPath = Path.Combine(BaseDir, "identifier.sqlite");
+        // private static readonly string ConnectionString = $"Data Source={DbPath}";
         private SqlConnectionStringBuilder? _builder;
         private readonly DataAccess _dataAccess;
+        private readonly ApiService _apiService;
         
 
-        public AisApp()
+        public AisApp(DataAccess dataAccess, ApiService apiService)
         {
             InitializeComponent();
-
-            _dataAccess = new DataAccess(ConnectionString);
+            _dataAccess = dataAccess;
+            _apiService = apiService;
+            // _dataAccess = new DataAccess(ConnectionString);
             _dataAccess.InitializeDatabase();
             logBox.DrawMode = DrawMode.OwnerDrawFixed;
             
@@ -53,6 +58,13 @@ namespace AISPubSub
                 .CreateLogger();
 
             Log.Information("AIS Pub Sub Client started");
+            
+            _accessToken = Environment.GetEnvironmentVariable("AIS_ACCESS_TOKEN")!;
+
+            if (String.IsNullOrEmpty(_accessToken))
+            {
+                HealthCheck();
+            }
             
         }
 
@@ -84,24 +96,11 @@ namespace AISPubSub
                     return;
                 }
                 cBDatasource.Items.AddRange([.. enumerable!]);
-
-                //foreach (DataTable table in res.Tables)
-                //{
-                //    foreach (DataRow row in table.Rows)`
-                //    {
-                //        if (row.Table.Columns.Contains("Name") && row["Name"] != DBNull.Value)
-                //        {
-                //            string dataSourceName = row["Name"].ToString();
-                //            cBDatasource.Items.Add(dataSourceName);
-                //        }
-                //    }
-                //}
-
+                
                 Log.Information($"Loaded {cBDatasource.Items.Count} Data Sources across {res.Tables.Count} categories.");
             }
             catch (Exception cx)
             {
-
                 Log.Error(cx.Message);
             }
 
@@ -126,6 +125,7 @@ namespace AISPubSub
                 {
                     Log.Information("AIS Data API is Healthy");
                     pBStatus.Image = Resources.circle;
+                    // _ = ConnectIntialize();
                 }
                 else
                 {
@@ -152,7 +152,7 @@ namespace AISPubSub
                 _signalRPubSubClient = await SignalRHubConnectionFactory.CreatePubSubClient(null, new HubConnectionManager(),
                     !string.IsNullOrEmpty(_accessToken) ? AuthenticationType.Connect : AuthenticationType.NTLM, _host, token: _accessToken);
 
-                Log.Information("Pubsub client created");
+                Log.Information("Pub sub client created");
 
             }
 
@@ -160,7 +160,7 @@ namespace AISPubSub
             _signalRPubSubClient.MessagePublished -= SignalRPubSubClient_MessagePublished;
 
             await _signalRPubSubClient.Subscribe(dataSource);
-            Log.Information($"Pubsub client subscribed to {dataSource}");
+            Log.Information($"Pub sub client subscribed to {dataSource}");
 
             _signalRPubSubClient.MessagePublished += SignalRPubSubClient_MessagePublished;
 
@@ -171,7 +171,7 @@ namespace AISPubSub
         {
             _signalRPubSubClient!.MessagePublished -= SignalRPubSubClient_MessagePublished;
             await _signalRPubSubClient.Unsubscribe(dataSource);
-            Log.Information($"Pubsub client unsubscribed from {dataSource}");
+            Log.Information($"Pub sub client unsubscribed from {dataSource}");
         }
 
         // Event handler for message published
@@ -195,20 +195,8 @@ namespace AISPubSub
                 if (baseResult?.Rows == null) return;
                 Log.Information($"Received {baseResult.Rows.Count} rows for table '{baseResult.TableName}'");
                 // Await this to ensure DB operations complete properly
-                if (_builder == null)
-                {
-                    _builder = new SqlConnectionStringBuilder
-                    {
-                        InitialCatalog = tBDatabase.Text,
-                        DataSource = tBServerInstance.Text,
-                        UserID = _tbUserId,
-                        Password = _tbPassword,
-                        IntegratedSecurity = false,
-                        ConnectTimeout = 30,
-                        TrustServerCertificate = true
-                    };
-                }
-                await _dataAccess.InsertDataIntoSqlServerAsync(baseResult, baseResult.TableName, _builder);
+
+                ValidateSqlrequest(baseResult, baseResult.TableName);
             }
             catch (Exception ex)
             {
@@ -216,7 +204,79 @@ namespace AISPubSub
             }
 
         }
+        
+        // Validate the SQL Type
+        private async void ValidateSqlrequest(DataTable? dataTable, string tableName)
+        {
+            try
+            {
+                if (rBSQLite.Checked)
+                {
+                    await _dataAccess.InsertDataIntoSqliteServerAsync(dataTable, tableName);
+                }
 
+                if (rBSQLServer.Checked)
+                {
+                    _builder ??= new SqlConnectionStringBuilder
+                    {
+                        ConnectionString = $"Server={tBServerInstance.Text};Database={tBDatabase.Text};Trusted_Connection=True;TrustServerCertificate=True;"
+                    };
+                        
+                    await _dataAccess.InsertDataIntoSqlServerAsync(dataTable!, tableName, _builder);
+                }
+            }
+            catch (Exception es)
+            {
+                Log.Error(es.Message);
+            }
+        }
+
+        private async Task ProcessEngineeringTables()
+        {
+            Log.Information($"Selected datasource; {_selectedDataSource}");
+            string? ackId = await _apiService.GetAcknowledgementIdAsync(_selectedDataSource, _accessToken);
+
+            // if (!string.IsNullOrEmpty(ackId))
+            // {
+            //     // Optional: Wait if the API is not instantaneous
+            //     // await Task.Delay(2000); 
+            //     
+            //     // string? resultData = await _apiService.GetDataByAcknowledgementIdAsync(ackId, _accessToken);
+            //
+            //     var tableResult = await _dataApiClient!.GetTableDataByAcknowledgementId(
+            //         _selectedDataSource,
+            //         ackId,
+            //         !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
+            //
+            //     Log.Information($"Data fetch completed. for {tableResult.TableName}" + tableResult.Columns.Count);
+            //     ValidateSqlrequest(tableResult, tableResult.TableName);
+            //     
+            // }
+            
+            // Step 1: Request the ID
+            // string ackId = await _apiService.GetAcknowledgementIdAsync(_accessToken);
+            if (string.IsNullOrEmpty(ackId)) return;
+
+            // Step 2: Poll until ready (Max 5 attempts)
+            string? finalData = null;
+            for (int i = 0; i < 5; i++)
+            {
+                Log.Information("Checking status attempt {Attempt}...", i + 1);
+                finalData = await _apiService.CheckStatusAndGetDataAsync(ackId, _accessToken);
+
+                if (finalData != null) break; // We got the data!
+
+                await Task.Delay(3000); // Wait 3 seconds before next check
+            }
+
+            if (finalData != null)
+            {
+                Log.Debug(finalData);
+                // Save to SQLite or SQL Server
+                Log.Information("Data received successfully.");
+            }
+        }
+        
         //Input Box for Access Token
         private static string ShowInputBox(string prompt, string title)
         {
@@ -225,6 +285,7 @@ namespace AISPubSub
             {
                 Width = 500,
                 Height = 150,
+                StartPosition =  FormStartPosition.CenterParent,
                 Text = title
             };
 
@@ -236,10 +297,8 @@ namespace AISPubSub
             promptForm.Controls.Add(confirmation);
             promptForm.Controls.Add(textLabel);
             promptForm.Controls.Add(inputBox);
-
-
+            
             var dialogResult = promptForm.ShowDialog();
-
             return dialogResult == DialogResult.OK ? inputBox.Text : string.Empty;
 
         }
@@ -252,6 +311,7 @@ namespace AISPubSub
             {
                 Width = 500,
                 Height = 200,
+                StartPosition =  FormStartPosition.CenterParent,
                 Text = @"Authentication"
             };
 
@@ -282,7 +342,6 @@ namespace AISPubSub
         private void BAuth_Click(object sender, EventArgs e)
         {
             ShowAthuBox("UserName", "Password");
-
         }
 
         // Test SQL Server Connection
@@ -295,23 +354,15 @@ namespace AISPubSub
                 //sqlConnectionStringBuilder.InitialCatalog = tBDatabase.Text;
                 SqlConnectionStringBuilder builder = new()
                 {
-                    InitialCatalog = tBDatabase.Text,
-                    DataSource = tBServerInstance.Text,
-                    UserID = _tbUserId,
-                    Password = _tbPassword,
-                    IntegratedSecurity = false,
-                    ConnectTimeout = 30,
-                    TrustServerCertificate = true
+                    ConnectionString = $"Server={tBServerInstance.Text};Database={tBDatabase.Text};Trusted_Connection=True;TrustServerCertificate=True;"
                 };
 
                 Log.Information(builder.ConnectionString);
 
                 SqlConnection sqlConnection = new(builder.ConnectionString);
                 sqlConnection.Open();
-                var connectionstatus = sqlConnection.State;
-                Log.Information(connectionstatus.ToString());
                 sqlConnection.Close();
-                Log.Information($"SQL Connection Successful {connectionstatus.ToString()}");
+                Log.Information($"SQL Connection Successful: Current State {sqlConnection.State.ToString()}");
             }
             catch (Exception ex)
             {
@@ -363,7 +414,8 @@ namespace AISPubSub
         {
             try
             {
-                _accessToken = ShowInputBox(prompt: "Enter Access Token", title: "Access Token");
+                _accessToken = ShowInputBox(prompt: "Enter Access Token", title: "Access Token"); 
+                
                 if (!string.IsNullOrEmpty(_accessToken))
                 {
                     _ = ConnectIntialize();
@@ -404,37 +456,39 @@ namespace AISPubSub
         {
             try
             {
-
+            
                 if (string.IsNullOrEmpty(_selectedDataSource))
                 {
                     Log.Information("Please select a Data Source first.");
                     return;
                 }
-
-                IEnumerable<Acknowledgement> ackList = await _dataApiClient!.GetAcknowledgements(_selectedDataSource, !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
-
+            
+                IEnumerable<Acknowledgement> ackList = await _dataApiClient!.GetAcknowledgements(_selectedDataSource,
+                    !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
+            
                 cBAckn.Items.Clear();
-
+            
                 if (ackList == null || !ackList.Any())
                 {
                     Log.Information("No Acknowledgements found for this source.");
                     return;
                 }
-
+            
                 var names = ackList
                     .Select(a => a.AcknowledgementId)
                     .Where(id => !string.IsNullOrEmpty(id))
                     .ToArray();
-
+            
                 cBAckn.Items.AddRange(names);
-
+            
                 Log.Information($"Loaded {names.Length} Acknowledgements.");
+                
             }
             catch (Exception ax)
             {
                 Log.Error(ax.Message);
             }
-
+            
         }
 
         // Load Tables for the selected data source
@@ -442,38 +496,7 @@ namespace AISPubSub
         {
             try
             {
-
-                if (string.IsNullOrEmpty(_selectedDataSource))
-                {
-                    Log.Information("Please select a Data Source first.");
-                    return;
-                }
-
-                Log.Information($"Fetching tables for Data Source: {_selectedDataSource}");
-
-                DataTable tableResult = await _dataApiClient!.GetTables(_selectedDataSource, liveData: false, _accessToken);
-
-                Log.Information("Table fetch completed.");
-
-                cBTable.Items.Clear();
-
-                if (tableResult == null || tableResult.Rows.Count == 0)
-                {
-                    Log.Information("No tables found for this source.");
-                    return;
-                }
-
-                Log.Information($"Total columns in table result: {tableResult.Columns.Count}");
-
-                // Using LINQ to extract strings from the DataRow collection
-                //var names = tableResult.AsEnumerable()
-                //    .Select(row => row.Field<string>("Name")) // Ensure column name matches exactly
-                //    .Where(name => !string.IsNullOrEmpty(name))
-                //    .ToArray();
-
-                //cBTable.Items.AddRange(names!);
-
-                //Log($"Loaded {names.Length} tables.");
+                await ProcessEngineeringTables();
             }
             catch (Exception ax)
             {
@@ -521,7 +544,8 @@ namespace AISPubSub
                     ackid,
                     !string.IsNullOrEmpty(_accessToken) ? _accessToken : null);
 
-                Log.Information("Data fetch completed." + tableResult.Columns.Count);
+                Log.Information($"Data fetch completed. for {tableResult.TableName}" + tableResult.Columns.Count);
+                ValidateSqlrequest(tableResult, tableResult.TableName);
             }
             catch (Exception ax)
             {

@@ -10,11 +10,12 @@
 using System;
 using System.Reflection;
 
+[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("2b9c40dc-7f3a-43d4-b208-5d06e5243d09")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("AISPubSub")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Keattavan")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.2")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4587ad28e12376fe0be6f375e4a73ae7a1c45662")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+68c8e7ca134b779da47e83dafc3377b73bf22efe")]
 [assembly: System.Reflection.AssemblyProductAttribute("AISPubSub")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AISPubSub")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.1")]

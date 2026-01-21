@@ -67,6 +67,7 @@ namespace AISPubSub
             label1 = new System.Windows.Forms.Label();
             logBox = new System.Windows.Forms.ListBox();
             bClear = new System.Windows.Forms.Button();
+            labTablename = new System.Windows.Forms.Label();
             gBAISdeployement.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pBStatus).BeginInit();
             gBAuthentication.SuspendLayout();
@@ -294,6 +295,7 @@ namespace AISPubSub
             // 
             // groupBox2
             // 
+            groupBox2.Controls.Add(labTablename);
             groupBox2.Controls.Add(button1);
             groupBox2.Controls.Add(bGetAcknIdByTable);
             groupBox2.Controls.Add(bGetDataByTable);
@@ -309,7 +311,7 @@ namespace AISPubSub
             groupBox2.Controls.Add(label1);
             groupBox2.Location = new System.Drawing.Point(9, 102);
             groupBox2.Name = "groupBox2";
-            groupBox2.Size = new System.Drawing.Size(495, 170);
+            groupBox2.Size = new System.Drawing.Size(495, 184);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
             groupBox2.Text = "AIS Datasource and Data fetching";
@@ -442,17 +444,19 @@ namespace AISPubSub
             // logBox
             // 
             logBox.FormattingEnabled = true;
+            logBox.HorizontalExtent = 5;
             logBox.HorizontalScrollbar = true;
             logBox.ItemHeight = 15;
-            logBox.Location = new System.Drawing.Point(6, 278);
+            logBox.Location = new System.Drawing.Point(6, 292);
             logBox.Name = "logBox";
+            logBox.ScrollAlwaysVisible = true;
             logBox.Size = new System.Drawing.Size(782, 214);
             logBox.TabIndex = 4;
             logBox.DrawItem += logBox_DrawItem;
             // 
             // bClear
             // 
-            bClear.Location = new System.Drawing.Point(719, 242);
+            bClear.Location = new System.Drawing.Point(719, 256);
             bClear.Name = "bClear";
             bClear.Size = new System.Drawing.Size(61, 30);
             bClear.TabIndex = 10;
@@ -460,11 +464,20 @@ namespace AISPubSub
             bClear.UseVisualStyleBackColor = true;
             bClear.Click += BClear_Click;
             // 
+            // labTablename
+            // 
+            labTablename.AutoSize = true;
+            labTablename.Location = new System.Drawing.Point(6, 162);
+            labTablename.Name = "labTablename";
+            labTablename.Size = new System.Drawing.Size(138, 15);
+            labTablename.TabIndex = 13;
+            labTablename.Text = "Table name from AcknID";
+            // 
             // AisApp
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(800, 505);
+            ClientSize = new System.Drawing.Size(800, 517);
             Controls.Add(bClear);
             Controls.Add(logBox);
             Controls.Add(groupBox2);
@@ -488,6 +501,8 @@ namespace AISPubSub
             ResumeLayout(false);
         }
 
+        private System.Windows.Forms.Label labTablename;
+
         #endregion
 
         private GroupBox gBAISdeployement;
@@ -500,7 +515,7 @@ namespace AISPubSub
         private Button bToken;
         private PictureBox pBStatus;
         private GroupBox groupBox1;
-        private GroupBox groupBox2;
+        private System.Windows.Forms.GroupBox groupBox2;
         private Label label2;
         private Label label1;
         private ComboBox cBTable;
@@ -523,7 +538,7 @@ namespace AISPubSub
         private Button bGetTables;
         private Button bGetDataByTable;
         private Button bGetDataByAckn;
-        private Button bClear;
+        private System.Windows.Forms.Button bClear;
         private Button bGetAcknIdByTable;
         private Button button1;
     }
